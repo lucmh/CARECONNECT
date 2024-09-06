@@ -6,8 +6,19 @@ import { useRouter } from 'next/navigation'
 import ProfileDisplay from './ProfileDisplay'
 import ProfileEdit from './ProfileEdit'
 
+interface Profile {
+  id: string
+  nome: string
+  email: string
+  plano_saude: string
+  carteira: string
+  documento: string
+  remedios: string
+  idade: number
+}
+
 export default function PerfilPage() {
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClientComponentClient()
   const router = useRouter()
@@ -40,7 +51,7 @@ export default function PerfilPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold text-black mb-4">Perfil do Usuário</h1>
+      <h1 className="text-2xl font-bold mb-4">Perfil do Usuário</h1>
       {profile ? (
         <>
           <ProfileDisplay profile={profile} />
