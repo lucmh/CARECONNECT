@@ -28,13 +28,18 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, setProfile }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setEditedProfile(prev => ({ ...prev, [name]: name === 'idade' ? parseInt(value) : value }))
+    setEditedProfile(prev => ({ ...prev, [name]: name === 'idade' ? parseInt(value) || 0 : value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage('')
+
+    if (!validateForm()) {
+      setIsLoading(false)
+      return
+    }
 
     try {
       const { error } = await supabase
@@ -51,6 +56,29 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, setProfile }) => {
       setMessage(`Erro ao atualizar o perfil: ${error.message}`)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const validateForm = () => {
+    if (!editedProfile.email.includes('@')) {
+      setMessage('Por favor, insira um email válido.')
+      return false
+    }
+    if (editedProfile.idade < 0 || editedProfile.idade > 120) {
+      setMessage('Por favor, insira uma idade válida.')
+      return false
+    }
+    return true
+  }
+
+  const handleCancel = () => {
+    if (JSON.stringify(editedProfile) !== JSON.stringify(profile)) {
+      if (window.confirm('Tem certeza que deseja cancelar? Todas as alterações não salvas serão perdidas.')) {
+        setEditedProfile(profile)
+        setIsEditing(false)
+      }
+    } else {
+      setIsEditing(false)
     }
   }
 
@@ -157,13 +185,15 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, setProfile }) => {
             onChange={handleChange}
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#FF6666] focus:border-[#FF6666] text-black"
             required
+            min="0"
+            max="120"
           />
         </div>
       </div>
       <div className="mt-6 flex justify-end space-x-4">
         <button
           type="button"
-          onClick={() => setIsEditing(false)}
+          onClick={handleCancel}
           className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded"
         >
           Cancelar
