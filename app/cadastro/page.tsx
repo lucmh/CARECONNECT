@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-const supabase = createClientComponentClient()
-
 export default function Cadastro() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
@@ -19,6 +17,7 @@ export default function Cadastro() {
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,20 +25,28 @@ export default function Cadastro() {
     setIsLoading(true)
 
     try {
-      // 1. Criar o usuário
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password: senha,
+        options: {
+          data: {
+            nome,
+            plano_saude: planoSaude,
+            carteira,
+            documento,
+            remedios,
+            idade: parseInt(idade),
+          }
+        }
       })
 
-      if (authError) throw authError
+      if (error) throw error
 
-      if (authData.user) {
-        // 2. Inserir o perfil do usuário
+      if (data.user) {
         const { error: profileError } = await supabase
           .from('perfis')
           .insert({
-            id: authData.user.id,  // Usar o ID do usuário recém-criado
+            id: data.user.id,
             nome,
             email,
             plano_saude: planoSaude,

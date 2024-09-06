@@ -3,19 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-export default function Home() {
+export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,20 +24,12 @@ export default function Home() {
         password,
       })
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          setMessage('E-mail ou senha incorretos. Por favor, tente novamente.')
-        } else if (error.message.includes('Email not confirmed')) {
-          setMessage('Por favor, confirme seu e-mail antes de fazer login.')
-        } else {
-          setMessage(`Erro ao fazer login: ${error.message}`)
-        }
-      } else {
-        setMessage('Login realizado com sucesso! Redirecionando para o perfil...')
-        setTimeout(() => router.push('/perfil'), 2000)
-      }
-    } catch (error) {
-      setMessage('Ocorreu um erro inesperado. Por favor, tente novamente.')
+      if (error) throw error
+
+      setMessage('Login realizado com sucesso! Redirecionando para o perfil...')
+      router.push('/perfil')
+    } catch (error: any) {
+      setMessage(`Erro ao fazer login: ${error.message}`)
     } finally {
       setIsLoading(false)
     }
