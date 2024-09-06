@@ -3,12 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClientComponentClient()
 
 export default function Cadastro() {
   const [nome, setNome] = useState('')
@@ -20,58 +17,47 @@ export default function Cadastro() {
   const [remedios, setRemedios] = useState('')
   const [idade, setIdade] = useState('')
   const [message, setMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage('')
+    setIsLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Criar o usuário
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: senha,
-        options: {
-          data: {
+      })
+
+      if (authError) throw authError
+
+      if (authData.user) {
+        // 2. Inserir o perfil do usuário
+        const { error: profileError } = await supabase
+          .from('perfis')
+          .insert({
+            id: authData.user.id,  // Usar o ID do usuário recém-criado
             nome,
+            email,
             plano_saude: planoSaude,
             carteira,
             documento,
             remedios,
-            idade,
-          }
-        }
-      })
+            idade: parseInt(idade),
+          })
 
-      if (error) {
-        if (error.message.includes('rate limit')) {
-          setMessage('Muitas tentativas de cadastro. Por favor, aguarde alguns minutos antes de tentar novamente.')
-        } else {
-          setMessage(`Erro ao cadastrar: ${error.message}`)
-        }
-        return
-      }
+        if (profileError) throw profileError
 
-      // Adicionar informações adicionais à tabela de perfis
-      const { error: profileError } = await supabase
-        .from('perfis')
-        .insert({
-          id: data.user?.id,
-          nome,
-          plano_saude: planoSaude,
-          carteira,
-          documento,
-          remedios,
-          idade,
-        })
-      
-      if (profileError) {
-        setMessage(`Erro ao criar perfil: ${profileError.message}`)
-      } else {
         setMessage('Cadastro realizado com sucesso! Verifique seu e-mail para confirmar a conta.')
         setTimeout(() => router.push('/'), 5000)
       }
-    } catch (error) {
-      setMessage('Ocorreu um erro inesperado. Por favor, tente novamente mais tarde.')
+    } catch (error: any) {
+      setMessage(`Erro ao cadastrar: ${error.message}`)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -118,8 +104,8 @@ export default function Cadastro() {
             <input id="idade" type="number" required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-[#FF6666] focus:border-[#FF6666] text-gray-800" value={idade} onChange={(e) => setIdade(e.target.value)} />
           </div>
           <div>
-            <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-[#FF6666] hover:bg-[#FF4444] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6666]">
-              CADASTRAR
+            <button type="submit" className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-medium text-white ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#FF6666] hover:bg-[#FF4444]'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6666]`} disabled={isLoading}>
+              {isLoading ? 'Cadastrando...' : 'CADASTRAR'}
             </button>
           </div>
         </form>
