@@ -1,71 +1,93 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from '@supabase/auth-helpers-react'
-import { supabase } from '../../lib/supabase'
-import { Calendar, Clock, FileText } from 'lucide-react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
 
-interface Appointment {
+interface Consulta {
   id: string
-  doctor: string
-  date: string
-  notes: string
+  paciente_id: string
+  medico_id: string
+  data_hora: string
+  status: string
+  observacoes: string
 }
 
-export default function Component() {
-  const session = useSession()
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+export default function ConsultasPage() {
+  const [consultas, setConsultas] = useState<Consulta[]>([])
+  const [isProfissional, setIsProfissional] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClientComponentClient()
+  const router = useRouter()
 
   useEffect(() => {
-    if (session?.user?.id) {
-      fetchAppointments()
-    }
-  }, [session])
+    async function loadConsultas() {
+      const { data: { session } } = await supabase.auth.getSession()
 
-  const fetchAppointments = async () => {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .order('date', { ascending: true })
+      if (!session) {
+        router.push('/')
+        return
+      }
 
-    if (error) {
-      console.error('Error fetching appointments:', error)
-    } else {
-      setAppointments(data || [])
+      const { data: userProfile } = await supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      const { data: profissionalProfile } = await supabase
+        .from('profissionais')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      setIsProfissional(!!profissionalProfile)
+
+      const { data: consultasData, error } = await supabase
+        .from('consultas')
+        .select('*')
+        .eq(isProfissional ? 'medico_id' : 'paciente_id', session.user.id)
+
+      if (error) {
+        console.error('Erro ao carregar consultas:', error)
+      } else {
+        setConsultas(consultasData || [])
+      }
+
+      setLoading(false)
     }
+
+    loadConsultas()
+  }, [supabase, router, isProfissional])
+
+  if (loading) {
+    return <div>Carregando...</div>
   }
 
   return (
-    <div className="flex-1 p-4">
-      <h1 className="text-2xl font-bold mb-4">Appointments</h1>
-      <button className="bg-[#FF9999] text-white px-4 py-2 rounded-full mb-4 hover:bg-[#FF7777] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF9999]">
-        New Appointment
-      </button>
-      <div className="bg-white rounded-lg shadow-lg p-4">
-        {appointments.length === 0 ? (
-          <p className="text-gray-500">No appointments scheduled.</p>
-        ) : (
-          appointments.map((appointment) => (
-            <div key={appointment.id} className="mb-4 p-4 border-b last:border-b-0">
-              <h2 className="font-bold text-lg">{appointment.doctor}</h2>
-              <div className="flex items-center text-gray-600 mt-2">
-                <Calendar className="w-4 h-4 mr-2" />
-                <p>{new Date(appointment.date).toLocaleDateString()}</p>
-              </div>
-              <div className="flex items-center text-gray-600 mt-1">
-                <Clock className="w-4 h-4 mr-2" />
-                <p>{new Date(appointment.date).toLocaleTimeString()}</p>
-              </div>
-              {appointment.notes && (
-                <div className="flex items-start text-gray-600 mt-2">
-                  <FileText className="w-4 h-4 mr-2 mt-1" />
-                  <p>{appointment.notes}</p>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Minhas Consultas</h1>
+      {consultas.length === 0 ? (
+        <p>Nenhuma consulta encontrada.</p>
+      ) : (
+        <ul className="space-y-4">
+          {consultas.map((consulta) => (
+            <li key={consulta.id} className="bg-white shadow rounded-lg p-4">
+              <p><strong>Data e Hora:</strong> {new Date(consulta.data_hora).toLocaleString()}</p>
+              <p><strong>Status:</strong> {consulta.status}</p>
+              <p><strong>Observações:</strong> {consulta.observacoes || 'Nenhuma observação'}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!isProfissional && (
+        <button
+          onClick={() => router.push('/consultas/agendar')}
+          className="mt-4 bg-[#FF6666] hover:bg-[#FF4444] text-white font-bold py-2 px-4 rounded"
+        >
+          Agendar Nova Consulta
+        </button>
+      )}
     </div>
   )
 }
